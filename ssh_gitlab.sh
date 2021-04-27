@@ -10,7 +10,7 @@ PUBKEY="$HOME/.ssh/id_rsa.pub"
 
 function fatal_error()
 {
-	printf "${RED}$1${NC}"
+	printf "${RED}$1${NC}\n"
 	exit 1
 }
 
@@ -75,8 +75,7 @@ function new_ssh_key()
 {
 	if ! [ -f $PUBKEY ]
 	then
-		printf "${YELLOW}No SSH key found at $PUBKEY. Generating one.${NC}\n"
-		ssh-keygen -q -f $HOME/.ssh/id_rsa -N ""
+		fatal_error "Cannot read file at $PUBKEY."
 	fi
 	curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt -o /dev/null \
 		"https://profile.intra.42.fr/gitlab_users" \
@@ -89,9 +88,25 @@ function new_ssh_key()
 function setup()
 {
 	mkdir -p $DIR
+	while [ $# -gt 0 ]
+	do
+		case $1 in
+			--public-key)
+				if [ $# -gt 1 ]
+				then
+					shift
+					PUBKEY=$1
+				else
+					fatal_error "Expected file name after --public-key"
+				fi
+				shift;;
+			*)
+				fatal_error "Unexpected parameter $1";;
+		esac
+	done
 }
 
-setup
+setup $@
 while ! user_cookie_exists
 do
 	printf "${BLUE}Please login${NC}\n"
