@@ -6,6 +6,7 @@ GREEN="\033[32m"
 YELLOW="\033[33m"
 BLUE="\033[34m"
 DIR="$HOME/.42-hack"
+PUBKEY="$HOME/.ssh/id_rsa.pub"
 
 function fatal_error()
 {
@@ -51,6 +52,16 @@ function get_authenticity_token()
 	fi
 }
 
+function signin_user()
+{
+	curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt -o /dev/null \
+		"https://signin.intra.42.fr/users/sign_in" \
+		--header "User-Agent: vfurmane's ssh_gitlab script" \
+		--data-urlencode "authenticity_token=$authenticity_token" \
+		--data-urlencode "user[login]=$username" \
+		--data-urlencode "user[password]=$password"
+}
+
 function get_gitlab_user()
 {
 	gitlab_user=$(echo $curl_result | sed -En "s/.*value=\"([^\"]*)\"[[:blank:]]*type=\"hidden\"[[:blank:]]*name=\"gitlab_user\[user_id\]\".*/\1/p")
@@ -60,13 +71,19 @@ function get_gitlab_user()
 	fi
 }
 
-function signin_user()
+function new_ssh_key()
 {
-	curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt "https://signin.intra.42.fr/users/sign_in" \
+	if ! [ -f $PUBKEY ]
+	then
+		printf "${YELLOW}No SSH key found at $PUBKEY. Generating one.${NC}\n"
+		ssh-keygen -q -f $HOME/.ssh/id_rsa -N ""
+	fi
+	curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt -o /dev/null \
+		"https://profile.intra.42.fr/gitlab_users" \
 		--header "User-Agent: vfurmane's ssh_gitlab script" \
 		--data-urlencode "authenticity_token=$authenticity_token" \
-		--data-urlencode "user[login]=$username" \
-		--data-urlencode "user[password]=$password" > /dev/null
+		--data-urlencode "gitlab_user[public_key]=$(cat $PUBKEY)" \
+		--data-urlencode "gitlab_user[user_id]=$gitlab_user"
 }
 
 function setup()
@@ -77,7 +94,7 @@ function setup()
 setup
 while ! user_cookie_exists
 do
-	printf "${RED}Please login${NC}\n"
+	printf "${BLUE}Please login${NC}\n"
 	read_credentials
 	get_authenticity_token https://signin.intra.42.fr/users/sign_in
 	signin_user
@@ -87,3 +104,6 @@ printf "${GREEN}Logged in!${NC}\n"
 get_authenticity_token https://profile.intra.42.fr/gitlab_users/new
 get_gitlab_user
 printf "${GREEN}Got the user id!${NC}\n"
+
+new_ssh_key
+printf "${GREEN}Updated the SSH key!${NC}\n"
