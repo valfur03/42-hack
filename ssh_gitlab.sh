@@ -1,16 +1,27 @@
-#!/bin/sh
+#!/bin/bash
 
 NC="\033[0m"
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
 BLUE="\033[34m"
-DIR="$HOME/.42hack"
+DIR="$HOME/.42-hack"
 
 function fatal_error()
 {
 	printf "${RED}$1${NC}"
 	exit 1
+}
+
+function user_cookie_exists()
+{
+	url_effective=$(curl -fLsS --cookie $DIR/cookies.txt -o /dev/null -w "%{url_effective}" 'https://profile.intra.42.fr')
+	if [ $url_effective == 'https://profile.intra.42.fr/' ]
+	then
+		return 0
+	else
+		return 1
+	fi
 }
 
 # Asks the user for his username and password
@@ -27,7 +38,7 @@ function read_credentials()
 
 function get_authenticity_token()
 {
-	curl_result=$(curl -fLsS -c $DIR/cookies.txt $1)
+	curl_result=$(curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt $1)
 	if [ $? -ne 0 ]
 	then
 		fatal_error "A fatal error occured while fetching the authenticity token..."
@@ -55,6 +66,11 @@ function setup()
 }
 
 setup
-read_credentials
-get_authenticity_token https://signin.intra.42.fr/users/sign_in
-signin_user
+while ! user_cookie_exists
+do
+	printf "${RED}Please login${NC}\n"
+	read_credentials
+	get_authenticity_token https://signin.intra.42.fr/users/sign_in
+	signin_user
+done
+printf "${GREEN}Logged in!${NC}\n"
