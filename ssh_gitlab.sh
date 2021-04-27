@@ -51,6 +51,15 @@ function get_authenticity_token()
 	fi
 }
 
+function get_gitlab_user()
+{
+	gitlab_user=$(echo $curl_result | sed -En "s/.*value=\"([^\"]*)\"[[:blank:]]*type=\"hidden\"[[:blank:]]*name=\"gitlab_user\[user_id\]\".*/\1/p")
+	if [ -z $gitlab_user ]
+	then
+		fatal_error "No gitlab user found..."
+	fi
+}
+
 function signin_user()
 {
 	curl -fLsS -c $DIR/cookies.txt --cookie $DIR/cookies.txt "https://signin.intra.42.fr/users/sign_in" \
@@ -74,3 +83,7 @@ do
 	signin_user
 done
 printf "${GREEN}Logged in!${NC}\n"
+
+get_authenticity_token https://profile.intra.42.fr/gitlab_users/new
+get_gitlab_user
+printf "${GREEN}Got the user id!${NC}\n"
